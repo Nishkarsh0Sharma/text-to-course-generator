@@ -117,4 +117,68 @@ const generateCourseContent = async(topic) => {
 
 };
 
-export { generateCourseContent };
+// gives lightweight course list
+const getAllCourses = async () => {
+    const courses = await Course.find()
+    .sort({ createdAt: -1 })
+    .select("title description tags modules createdAt updatedAt");
+
+    return courses.map((course)=>({
+        _id: course._id,
+        title: course.title,
+        description: course.description,
+        tags: course.tags,
+        modulesCount: course.modules.length,
+        createdAt: course.createdAt,
+        updatedAt: course.updatedAt
+    }));
+};
+
+// gives full nested course with modules and lessons
+// uses populate() to replace IDs with actual documents
+const getCourseById = async (courseId) => {
+    const course = await Course.findById(courseId).populate({
+        path: "modules",
+        populate: {
+            path: "lessons",
+            select: "title objectives content videoQuery isEnriched createdAt updatedAt",
+        },
+    });
+
+    if(!course) return null;
+
+    return{
+        _id: course._id,
+        title: course.title,
+        description: course.description,
+        tags: course.tags,
+        creator: course.creator,
+        createdAt: course.createdAt,
+        updatedAt: course.updatedAt,
+
+        modules: course.modules.map((module)=>({
+            _id: module._id,
+            title: module.title,
+            createdAt: module.createdAt,
+            updatedAt: module.updatedAt,
+
+            lessons: module.lessons.map((lesson)=>({
+                _id: lesson._id,
+                title: lesson.title,
+                objectives: lesson.objectives,
+                content: lesson.content,
+                videoQuery: lesson.videoQuery,
+                isEnriched: lesson.isEnriched,
+                createdAt: lesson.createdAt,
+                updatedAt: lesson.updatedAt,
+            })),
+
+        })),
+    };
+};
+
+export { 
+    generateCourseContent , 
+    getAllCourses , 
+    getCourseById 
+};
