@@ -16,6 +16,7 @@ import connectDB from "./config/db.js";
 // we import the course routes from the course.routes.js file, which will handle all the course-related API endpoints
 import courseRoutes from "./routes/course.routes.js";
 import lessonRoutes from "./routes/lesson.routes.js";
+import { errorHandler } from "./middlewares/error.middleware.js";
 
 // this will load the enviornment variables from the .env file and make them available in process.env
 dotenv.config();
@@ -52,6 +53,8 @@ app.get("/" , (req , res)=>{
 app.use("/api/courses" , courseRoutes);
 
 app.use("/api/lessons", lessonRoutes);
+
+app.use(errorHandler); // global error handling middleware
 
 // this starts the server and listens on the specified PORT, and it will log a message in the console when the server is up and running
 app.listen(PORT , ()=>{

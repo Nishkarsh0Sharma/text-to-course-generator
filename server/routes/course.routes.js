@@ -8,6 +8,8 @@ import {
     getCourseDetails, 
 } from "../controllers/course.controller.js";
 
+import { validateObjectId } from '../middlewares/validate.middleware.js';
+
 // this creates a new router instance from express, which we will use to define our course-related routes
 const router = express.Router();
 
@@ -18,7 +20,7 @@ router.post("/generate-course" , generateCourse);
 router.get("/" , getCourses);
 
 // fetch one saved course by its id
-router.get("/:courseId" , getCourseDetails);
+router.get("/:courseId" , validateObjectId("courseId") , getCourseDetails);
 
 
 // finally, we export the router so that it can be imported and used in the main server.js file to register the course-related routes with the express app
