@@ -8,6 +8,7 @@ import Course from "../models/course.model.js";
 import Module from "../models/module.model.js";
 import Lesson from "../models/lesson.model.js";
 
+// this function takes a topic as input and generates a course structure with modules and lessons.
 const generateCourseContent = async(topic) => {
     // step 1 : build a dummy course outline
     // later , this can be replace with a real AI-generated output
@@ -177,8 +178,141 @@ const getCourseById = async (courseId) => {
     };
 };
 
+// gives detailed lesson info with its module's title and course id (but not the full course details)
+const getLessonById = async (lessonId) =>{
+
+    // this will return the lesson with its module's title and course id (but not the full course details)
+    const lesson = await Lesson.findById(lessonId).populate({
+        path: "module",
+        select: "title course createdAt updatedAt",
+    });
+
+    if(!lesson) return null;
+
+    return {
+        _id: lesson._id,
+        title: lesson.title,
+        objectives: lesson.objectives,
+        content: lesson.content,
+        videoQuery: lesson.videoQuery,
+        isEnriched: lesson.isEnriched,
+        createdAt: lesson.createdAt,
+        updatedAt: lesson.updatedAt,
+
+        module: lesson.module
+        ? {
+            _id: lesson.module._id,
+            title: lesson.module.title,
+            course: lesson.module.course,
+            createdAt: lesson.module.createdAt,
+            updatedAt: lesson.module.updatedAt,
+            }
+        : null,
+
+    };
+};
+
+
+// this function takes a lessonId as input and generates detailed content for that lesson, 
+// including learning objectives, structured content blocks, and a video query. 
+// It first checks if the lesson exists and if it has already been enriched. 
+// If not, it builds dummy enrichment content (which can later be replaced with real AI-generated content), updates the lesson in the database, and returns the enriched lesson details.
+const generateLessonContentById = async(lessonId) => {
+    const lesson = await Lesson.findById(lessonId).populate({
+        path: "module",
+        select: "title course", 
+    });
+
+    if(!lesson) return null;
+
+    // if lesson is already isEnriched , return the current saved lesson
+    if( lesson.isEnriched ){
+        return {
+            _id: lesson._id,
+            title: lesson.title,
+            objectives: lesson.objectives,
+            content: lesson.content,
+            videoQuery: lesson.videoQuery,
+            isEnriched: lesson.isEnriched,
+            createdAt: lesson.createdAt,
+            updatedAt: lesson.updatedAt,
+
+            module: lesson.module
+            ? {
+                _id: lesson.module._id,
+                title: lesson.module.title,
+                course: lesson.module.course,
+                createdAt: lesson.module.createdAt,
+                updatedAt: lesson.module.updatedAt,
+                }
+            : null,
+
+        };
+    }
+
+    // build dunmmy lesson emrichment content for now
+    // later this can be replaced by real AI-generated content
+    const generatedObjectives = [
+        `Understand the core idea behind ${lesson.title}`,
+        `Identify practical importance of ${lesson.title}`,
+        `Build a begineer-friendly understanding of ${lesson.title}`,
+    ];
+
+    const generatedVideoQuery = `${lesson.title} tutorial for beginners`;
+
+    const generatedContent = [
+        {
+            type: "heading",
+            text: lesson.title,
+        },
+        {
+            type: "paragraph",
+            text: `${lesson.title} is an important concept in this course. This lesson introduces the idea in a simple and structured way so that a beginner can understand the fundamentals clearly.`,
+        },
+        {
+            type: "paragraph",
+            text: `By learning ${lesson.title}, the student builds a stronger foundation for the upcoming concepts in this module and gains confidence in understanding the broader topic.`,
+        },
+        {
+            type: "video",
+            query: generatedVideoQuery,
+        },
+    ];
+
+    lesson.objectives = generatedObjectives;
+    lesson.content = generatedContent;
+    lesson.videoQuery = generatedVideoQuery;
+    lesson.isEnriched = true;
+
+    await lesson.save();
+
+    return {
+        _id: lesson._id,
+        title: lesson.title,
+        objectives: lesson.objectives,
+        content: lesson.content,
+        videoQuery: lesson.videoQuery,
+        isEnriched: lesson.isEnriched,
+        createdAt: lesson.createdAt,
+        updatedAt: lesson.updatedAt,
+
+        module: lesson.module
+        ? {
+            _id: lesson.module._id,
+            title: lesson.module.title,
+            course: lesson.module.course,
+            createdAt: lesson.module.createdAt,
+            updatedAt: lesson.module.updatedAt,
+            }
+        : null,
+    };
+    
+};
+
 export { 
     generateCourseContent , 
     getAllCourses , 
-    getCourseById 
+    getCourseById ,
+    getLessonById,
+    generateLessonContentById ,
 };
