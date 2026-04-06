@@ -32,9 +32,6 @@ app.use(cors());
 // tells express to automatically parse JSON body data
 app.use(express.json());
 
-// this conncects to the MongoDB database using the connection string from the .env file, and it will log a message if the connection is successful or if there is an error
-connectDB();
-
 // Health check
 // when you open http://localhost:5000/ , you'll know the backend is alive and running, and it will return a JSON response with a success message
 app.get("/" , (req , res)=>{
@@ -56,7 +53,18 @@ app.use("/api/lessons", lessonRoutes);
 
 app.use(errorHandler); // global error handling middleware
 
-// this starts the server and listens on the specified PORT, and it will log a message in the console when the server is up and running
-app.listen(PORT , ()=>{
-     console.log(`Server is running on port ${PORT}`);
-});
+const startServer = async () => {
+    try {
+        // Connect to the database before accepting API requests.
+        await connectDB();
+
+        app.listen(PORT , ()=>{
+            console.log(`Server is running on port ${PORT}`);
+        });
+    } catch (error) {
+        console.error("Server startup failed:", error.message);
+        process.exit(1);
+    }
+};
+
+startServer();

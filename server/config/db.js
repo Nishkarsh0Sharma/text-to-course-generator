@@ -1,26 +1,24 @@
-/*
-    since server.js calls connectDB(), your db.js should later:
-        1. import mongoose 
-        2. read MONGO_URI from process.env
-        3. connect to MongoDB
-        4. log success or failure message
-
-*/ 
-
 import mongoose from "mongoose";
 
-const connectDB = async() => {
-    try {
-        // try connect mongoose using the connection string from .env
-        const connection = await mongoose.connect(process.env.MONGO_URL);
+const connectDB = async () => {
+  const mongoUri = process.env.MONGO_URI || process.env.MONGO_URL;
 
-        console.log(`MongoDB connected successfully: ${connection.connection.host}`);
+  if (!mongoUri) {
+    throw new Error("MongoDB connection string is missing in the environment variables");
+  }
 
-    } catch(error){
-        // stop the server process if database connection fails
-        process.exit(1);
-    }
+  try {
+    // Fail fast instead of letting Mongoose buffer operations for a long time.
+    const connection = await mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 10000,
+    });
+
+    console.log(`MongoDB connected successfully: ${connection.connection.host}`);
+    return connection;
+  } catch (error) {
+    console.error("Database connection failed:", error.message);
+    throw error;
+  }
 };
-
 
 export default connectDB;

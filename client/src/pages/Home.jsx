@@ -1,6 +1,6 @@
 import { useEffect , useState } from "react";
+import { Link } from "react-router-dom";
 import { getAllCourses , generateCourse } from "../utils/api.js";
-
 // <main> means that this is the main content of the page, and it will be rendered in the body of the HTML document.
 
 // Mount → useEffect → fetchCourse → setCourses → render
@@ -67,39 +67,49 @@ function Home(){
     };
 
     return(
-        <main>
-            <h1>Text-to-Course Generator</h1>
-            <p>Generate and explore AI-powered courses from any topic.</p>
+        <main className="page">
+            <header className="page-header">
+                <h1>Text-to-Course Generator</h1>
+                <p>Generate and explore AI-powered courses from any topic.</p>
+            </header>
 
-            <form onSubmit={handleGenerateCourse}>
-                <input
-                    type="text"
-                    placeholder="Enter a topic like Machine Learning"
-                    value={topic} // value={topic} means 
-                    onChange={(event)=> setTopic(event.target.value)}
-                />
+            <section className="form-card">
+                <form onSubmit={handleGenerateCourse} className="form-row">
+                    <input
+                        className="form-card"
+                        type="text"
+                        placeholder="Enter a topic like Machine Learning"
+                        value={topic} // value={topic} means 
+                        onChange={(event)=> setTopic(event.target.value)}
+                    />
 
-                <button type="submit" disabled={isLoading}>
-                    {isLoading ? "Generating..." : "Generate Course"}
-                </button>
-            </form>
+                    <button className="button" type="submit" disabled={isLoading}>
+                        {isLoading ? "Generating..." : "Generate Course"}
+                    </button>
+                </form>
+            </section>
 
-            {error && <p>{error}</p>}
+            {error && <p className="message error">{error}</p>}
 
             <section>
-                <h2>Saved Courses</h2>
-                { isLoading && <p>Loading...</p> }
-                { !isLoading && courses.length === 0 && <p>No courses found yet.</p> }
+                <h2 className="section-title">Saved Courses</h2>
+                { isLoading && <p className="message">Loading...</p> }
+                { !isLoading && courses.length === 0 && <p className="message">No courses found yet.</p> }
 
-                { !isLoading &&
-                    courses.map((course)=>(
-                        <article key={course._id}> 
-                            <h3>{course.title}</h3>
-                            <p>{course.description}</p>
-                            <p>Modules : {course.modulesCount}</p>
-                        </article>
-                    ))
-                }
+                <div className="stack">
+                    { !isLoading &&
+                        courses.map((course)=>(
+                            <article key={course._id} className="card"> 
+                                <h3>
+                                    <Link to={`/courses/${course._id}`} >{course.title}</Link>
+                                </h3>
+                                <p>{course.description}</p>
+                                <p className="meta">Modules : {course.modulesCount}</p>
+                                <Link to={`/courses/${course._id}`} >Open Course</Link>
+                            </article>
+                        ))
+                    }
+                </div>
             </section>
 
         </main>
