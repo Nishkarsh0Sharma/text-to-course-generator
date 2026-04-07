@@ -4,6 +4,10 @@ import { getLessonById, generateLessonContent } from "../utils/api.js";
 
 import LessonRenderer from "../components/LessonRenderer.jsx";
 
+import EmptyState from "../components/EmptyState.jsx";
+import ErrorState from "../components/ErrorState.jsx";
+import LoadingState from "../components/LoadingState.jsx";
+
 // fetches lesson by id
 // generates lesson content if it is not enriched
 // displays title, module, objectives, and content
@@ -55,7 +59,7 @@ function Lesson() {
   if(isLoading){
     return (
       <main className="page">
-        <p className="message">Loading lesson...</p>
+        <LoadingState message="Loading lesson..." />
       </main>
     );
   }
@@ -63,7 +67,7 @@ function Lesson() {
   if(error){
     return (
       <main className="page">
-        <p className="message error">{error}</p>
+        <ErrorState message={error} />
       </main>
     );
   }
@@ -71,7 +75,7 @@ function Lesson() {
   if(!lesson){
     return (
       <main className="page">
-        <p className="message">Lesson not found.</p>
+        <EmptyState message="Lesson not found." />
       </main>
     );
   }
@@ -94,7 +98,7 @@ function Lesson() {
             <h2 className="section-title">Objectives</h2>
 
             {lesson.objectives.length === 0 ? (
-                <p className="meta">No objectives available.</p>
+                <EmptyState message="No objectives available." />
             ) : (
                 <ul className="objective-list">
                     {lesson.objectives.map((objective,index)=>(

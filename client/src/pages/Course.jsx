@@ -3,6 +3,10 @@ import { Link , useParams } from "react-router-dom";
 
 import { getCourseById } from "../utils/api.js";
 
+import EmptyState from "../components/EmptyState.jsx";
+import ErrorState from "../components/ErrorState.jsx";
+import LoadingState from "../components/LoadingState.jsx";
+
 // "useParams()" means we are using the useParams hook from react-router-dom to access the URL parameters in our Course component.
 
 // gets courseId from URL
@@ -43,7 +47,7 @@ function Course(){
     if( isLoading ){
         return (
             <main className="page">
-                <p className="message">Loading course...</p>
+                <LoadingState message="Loading course..." />
             </main>
         );
     }
@@ -51,7 +55,7 @@ function Course(){
     if( error ){
         return (
             <main className="page">
-                <p className="message error">{error}</p>
+                <ErrorState message={error} />
             </main>
         );
     }
@@ -59,7 +63,7 @@ function Course(){
     if( !course ){
         return (
             <main className="page">
-                <p className="message">Course not found.</p>
+                <EmptyState message="Course not found."/>
             </main>
         );
     }
@@ -77,7 +81,7 @@ function Course(){
 
                 <h2 className="section-title">Modules</h2>
 
-                {course.modules.length === 0 && <p className="message">No Modules found for this course.</p>}
+                {course.modules.length === 0 && <EmptyState message="No module found for this course." />}
 
                 <div className="stack">
                     {course.modules.map((module)=>(

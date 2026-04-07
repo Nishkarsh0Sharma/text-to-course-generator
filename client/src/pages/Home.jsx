@@ -1,6 +1,11 @@
 import { useEffect , useState } from "react";
 import { Link } from "react-router-dom";
 import { getAllCourses , generateCourse } from "../utils/api.js";
+import PromptForm from "../components/PromptForm.jsx";
+import EmptyState from "../components/EmptyState.jsx";
+import ErrorState from "../components/ErrorState.jsx";
+import LoadingState from "../components/LoadingState.jsx";
+
 // <main> means that this is the main content of the page, and it will be rendered in the body of the HTML document.
 
 // Mount → useEffect → fetchCourse → setCourses → render
@@ -38,13 +43,7 @@ function Home(){
     } , [] );
 
     // this function will handle the form submission for generating a new course based on the input topic, and it will call the generateCourse API function to send a request to the backend server to generate a new course, and then it will refresh the course list by calling fetchCourse after successfully generating a new course.
-    const handleGenerateCourse = async(event) => {
-        event.preventDefault(); // prevent the default form submission behavior which will cause a page reload
-
-        if( !topic || !topic.trim() ){
-            setError("Please enter a valid topic");
-            return;
-        }
+    const handleGenerateCourse = async(topic) => {
 
         try {
             setIsLoading(true);
@@ -57,8 +56,7 @@ function Home(){
                 return;
             }
 
-            setTopic("");
-            fetchCourse(); // refresh the course list after generating a new course
+            await fetchCourse(); // refresh the course list after generating a new course
         } catch (error) {
             setError("Something went wrong while generating the course");
         }finally{ // finally block will run regardless of whether the try block succeeds or the catch block catches an error, so it's a good place to put cleanup code like setting isLoading to false after the API call is done.
@@ -73,28 +71,15 @@ function Home(){
                 <p>Generate and explore AI-powered courses from any topic.</p>
             </header>
 
-            <section className="form-card">
-                <form onSubmit={handleGenerateCourse} className="form-row">
-                    <input
-                        className="form-card"
-                        type="text"
-                        placeholder="Enter a topic like Machine Learning"
-                        value={topic} // value={topic} means 
-                        onChange={(event)=> setTopic(event.target.value)}
-                    />
+            <PromptForm onGenerate={handleGenerateCourse} isLoading={isLoading} />
 
-                    <button className="button" type="submit" disabled={isLoading}>
-                        {isLoading ? "Generating..." : "Generate Course"}
-                    </button>
-                </form>
-            </section>
-
-            {error && <p className="message error">{error}</p>}
+            {error && <ErrorState message={error} />}
 
             <section>
+
                 <h2 className="section-title">Saved Courses</h2>
-                { isLoading && <p className="message">Loading...</p> }
-                { !isLoading && courses.length === 0 && <p className="message">No courses found yet.</p> }
+                {isLoading && <LoadingState message="Loading courses..." />}
+                { !isLoading && courses.length === 0 && <EmptyState message="No courses found yet." /> }
 
                 <div className="stack">
                     { !isLoading &&
@@ -110,6 +95,7 @@ function Home(){
                         ))
                     }
                 </div>
+
             </section>
 
         </main>

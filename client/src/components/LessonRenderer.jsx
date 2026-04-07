@@ -4,6 +4,9 @@ import HeadingBlock from "../blocks/HeadingBlock.jsx";
 import ParagraphBlock from "../blocks/ParagraphBlock.jsx"
 import VideoBlock from "../blocks/VideoBlock.jsx"
 
+import CodeBlock from "../blocks/CodeBlock.jsx";
+import MCQBlock from "../blocks/MCQBlock.jsx";
+
 // i/p : content array
 // o/p : render correct React component for each block type
 // This becomes the central renderer for lesson blocks, so Lesson.jsx no longer needs block-specific logic.
@@ -26,6 +29,14 @@ function LessonRenderer( {content} ){
 
                 if( block.type === "video" ){
                     return <VideoBlock key={index} text={block.query} />;
+                }
+
+                if( block.type === "code" ){
+                    return <CodeBlock key={index} language={block.language} text={block.text} />
+                }
+
+                if( block.type === "mcq" ){
+                    return <MCQBlock key={index} question={block.question} options={block.options} answer={block.answer} explanation={block.explanation} />
                 }
 
                 return (

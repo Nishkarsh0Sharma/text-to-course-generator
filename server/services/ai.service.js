@@ -274,10 +274,27 @@ const generateLessonContentById = async(lessonId) => {
             text: `By learning ${lesson.title}, the student builds a stronger foundation for the upcoming concepts in this module and gains confidence in understanding the broader topic.`,
         },
         {
+            type: "code",
+            language: "javascript",
+            text: `function explainLesson() {\n  console.log("Learning: ${lesson.title}");\n}\n\nexplainLesson();`,
+        },
+        {
+            type: "mcq",
+            question: `What best describes ${lesson.title}?`,
+            options: [
+                `It is an important learning concept in this course`,
+                `It is a type of database`,
+                `It is only a UI design pattern`,
+            ],
+            answer: 0,
+            explanation: `${lesson.title} is being taught as an important concept within this lesson, not as a database or only a UI pattern.`,
+        },
+        {
             type: "video",
             query: generatedVideoQuery,
         },
     ];
+
 
     lesson.objectives = generatedObjectives;
     lesson.content = generatedContent;

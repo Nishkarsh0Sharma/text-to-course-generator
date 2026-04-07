@@ -2,7 +2,7 @@
 
 // a clean single place for all current backend calls.
 
-const API_BASE_URL = "http://localhost:5001/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const getAllCourses = async()=>{
     const response = await fetch(`${API_BASE_URL}/courses`);
