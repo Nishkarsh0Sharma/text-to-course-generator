@@ -10,11 +10,13 @@ import {
 
 import { validateObjectId } from '../middlewares/validate.middleware.js';
 
+import { requireAuth } from '../middlewares/auth.middleware.js';
+
 // this creates a new router instance from express, which we will use to define our course-related routes
 const router = express.Router();
 
 // this defines a POST route at the path "/generate-course" and associates it with the generateCourse controller function, so when a POST request is made to this endpoint, the generateCourse function will be executed to handle the request and generate a course based on the input text
-router.post("/generate-course" , generateCourse);
+router.post("/generate-course" , requireAuth , generateCourse);
 
 // fetch all saved courses
 router.get("/" , getCourses);

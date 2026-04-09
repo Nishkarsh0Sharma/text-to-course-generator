@@ -9,7 +9,7 @@ import Module from "../models/module.model.js";
 import Lesson from "../models/lesson.model.js";
 
 // this function takes a topic as input and generates a course structure with modules and lessons.
-const generateCourseContent = async(topic) => {
+const generateCourseContent = async(topic,creator) => {
     // step 1 : build a dummy course outline
     // later , this can be replace with a real AI-generated output
 
@@ -52,7 +52,7 @@ const generateCourseContent = async(topic) => {
     const savedCourse = await Course.create({
         title: generatedCourse.title,
         description: generatedCourse.description,
-        creator: "demo-user",
+        creator: creator,
         tags: generatedCourse.tags,
         modules: [],
     });

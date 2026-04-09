@@ -13,9 +13,12 @@ const generateCourse = async ( req , res ) => {
                 message : "Topic is required",
             });
         }
+        
+        const creator = req.auth?.payload?.sub;
 
         // controller sends cleaned topic to service layer
-        const course = await generateCourseContent(topic.trim());
+        // so generator controller now passes the authenticated user identity into the service
+        const course = await generateCourseContent(topic.trim() , creator);
 
         return res.status(200).json({
             success : true,

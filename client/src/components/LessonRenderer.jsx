@@ -28,7 +28,7 @@ function LessonRenderer( {content} ){
                 }
 
                 if( block.type === "video" ){
-                    return <VideoBlock key={index} text={block.query} />;
+                    return <VideoBlock key={index} query={block.query} />;
                 }
 
                 if( block.type === "code" ){

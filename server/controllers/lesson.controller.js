@@ -1,4 +1,5 @@
 import { getLessonById , generateLessonContentById } from "../services/ai.service.js";
+import { searchYouTubeVideo } from "../services/youtube.service.js"
 
 // this is the controller function that will handle the logic for fetching detailed information about a specific lesson by its ID, including its content and any other relevant details. 
 // It will receive the lessonId from the request parameters, validate it, call the getLessonById service function to fetch the lesson details from the database, 
@@ -64,8 +65,46 @@ const generateLessonContent = async( req , res ) => {
     }
 };
 
+// return the first embeddable YouTube video from searchYouTubeVideo
+const getLessonVideo = async(req,res) => {
+    try {
+        const { query } = req.query;
+
+        if(!query || !query.trim()){
+            return res.status(400).json({
+                success: false,
+                message: "Query is required",
+            });
+        }
+
+        const video = await searchYouTubeVideo(query.trim());
+
+        if(!video){
+            return res.status(404).json({
+                success: false,
+                message: "No video found",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Video fetched successfully.",
+            data: video,
+        });
+
+    } catch (error) {
+        console.error("Error in getLessonVideo controller:", error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch lesson video."
+        });
+    }
+};
+
 
 export {
     getLessonDetails,
     generateLessonContent,
+    getLessonVideo,
 };

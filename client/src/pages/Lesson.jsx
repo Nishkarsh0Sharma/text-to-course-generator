@@ -1,4 +1,4 @@
-import { useEffect , useState } from "react";
+import { useEffect , useState , useRef } from "react";
 import { Link , useParams } from "react-router-dom";
 import { getLessonById, generateLessonContent } from "../utils/api.js";
 
@@ -8,114 +8,153 @@ import EmptyState from "../components/EmptyState.jsx";
 import ErrorState from "../components/ErrorState.jsx";
 import LoadingState from "../components/LoadingState.jsx";
 
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+
 // fetches lesson by id
 // generates lesson content if it is not enriched
 // displays title, module, objectives, and content
 // handles loading/error/not-found states
 function Lesson() {
-  const { lessonId } = useParams();
+    const { lessonId } = useParams();
 
-  const [lesson, setLesson] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
+    const [lesson, setLesson] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState("");
 
-  useEffect(() => {
-    const fetchLesson = async () => {
-      try {
-        setError("");
-        setIsLoading(true);
+    const lessonRef = useRef(null);
 
-        const lessonResult = await getLessonById(lessonId);
+    // this is called by "Download PDF" button on UI
+    const handleDownloadPdf = async()=> {
+        if(!lessonRef.current) return;
 
-        if (!lessonResult.success) {
-          setError(lessonResult.message || "Failed to fetch lesson");
-          return;
-        }
+        // convert html to image(canva)
+        const canvas = await html2canvas(lessonRef.current, {
+            scale: 2,
+            useCORS: true,
+        });
 
-        let lessonData = lessonResult.data;
+        // convert to image (base64 string) 
+        const imageData = canvas.toDataURL("image/png");
+        
+        // new pdf object(create new pdf) 
+        const pdf = new jsPDF("p" , "mm" , "a4");
 
-        if (!lessonData.isEnriched) {
-          const generatedResult = await generateLessonContent(lessonId);
+        // pdf size calculation
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = ( canvas.height * pdfWidth ) / canvas.width;
 
-          if (!generatedResult.success) {
-            setError(generatedResult.message || "Failed to generate lesson content");
-            return;
-          }
-
-          lessonData = generatedResult.data;
-        }
-
-        setLesson(lessonData);
-      } catch (err) {
-        setError("Something went wrong while loading the lesson");
-      } finally {
-        setIsLoading(false);
-      }
+        // add image to pdf
+        pdf.addImage( imageData , "PNG" , 0 , 0 , pdfWidth , pdfHeight );
+        // download the pdf
+        pdf.save(`${lesson.title}.pdf`);
     };
 
-    fetchLesson();
-  }, [lessonId]);
+    useEffect(() => {
+        const fetchLesson = async () => {
+            try {
+            setError("");
+            setIsLoading(true);
 
-  if(isLoading){
+            const lessonResult = await getLessonById(lessonId);
+
+            if (!lessonResult.success) {
+                setError(lessonResult.message || "Failed to fetch lesson");
+                return;
+            }
+
+            let lessonData = lessonResult.data;
+
+            if (!lessonData.isEnriched) {
+                const generatedResult = await generateLessonContent(lessonId);
+
+                if (!generatedResult.success) {
+                setError(generatedResult.message || "Failed to generate lesson content");
+                return;
+                }
+
+                lessonData = generatedResult.data;
+            }
+
+            setLesson(lessonData);
+            } catch (err) {
+            setError("Something went wrong while loading the lesson");
+            } finally {
+            setIsLoading(false);
+            }
+        };
+
+        fetchLesson();
+    }, [lessonId]);
+
+    if(isLoading){
+        return (
+            <main className="page">
+            <LoadingState message="Loading lesson..." />
+            </main>
+        );
+    }
+
+    if(error){
+        return (
+            <main className="page">
+            <ErrorState message={error} />
+            </main>
+        );
+    }
+
+    if(!lesson){
+        return (
+            <main className="page">
+            <EmptyState message="Lesson not found." />
+            </main>
+        );
+    }
+
     return (
-      <main className="page">
-        <LoadingState message="Loading lesson..." />
-      </main>
-    );
-  }
-
-  if(error){
-    return (
-      <main className="page">
-        <ErrorState message={error} />
-      </main>
-    );
-  }
-
-  if(!lesson){
-    return (
-      <main className="page">
-        <EmptyState message="Lesson not found." />
-      </main>
-    );
-  }
-
-  return (
     <main className="page">
 
         {lesson.module && (
-            <Link className="black-line" to={`/courses/${lesson.module.course}`} >
+            <Link className="black-line" to={`/courses/${lesson.module.course}`} style={{marginRight:"1rem"}} >
                 Back to Course
             </Link>
         )}
 
-        <header className="page-header">
-            <h1>{lesson.title}</h1>
-            {lesson.module && <p>Module: {lesson.module.title}</p>}
-        </header>
+        <button className="button" onClick={handleDownloadPdf} type="button" >
+            Download PDF
+        </button>
 
-        <section className="section-card">
-            <h2 className="section-title">Objectives</h2>
+        <div ref={lessonRef}>
 
-            {lesson.objectives.length === 0 ? (
-                <EmptyState message="No objectives available." />
-            ) : (
-                <ul className="objective-list">
-                    {lesson.objectives.map((objective,index)=>(
-                        <li key={index}>{objective}</li>
-                    ))}
-                </ul>
-            )}
-        </section>
+            <header className="page-header">
+                <h1>{lesson.title}</h1>
+                {lesson.module && <p>Module: {lesson.module.title}</p>}
+            </header>
 
-        <section className="section-card" style={{marginTop:"1rem"}}>
-            <h2 className="section-title">Lesson Content</h2>
-            <LessonRenderer content={lesson.content} />
-        </section>
+            <section className="section-card">
+                <h2 className="section-title">Objectives</h2>
+
+                {lesson.objectives.length === 0 ? (
+                    <EmptyState message="No objectives available." />
+                ) : (
+                    <ul className="objective-list">
+                        {lesson.objectives.map((objective,index)=>(
+                            <li key={index}>{objective}</li>
+                        ))}
+                    </ul>
+                )}
+            </section>
+
+            <section className="section-card" style={{marginTop:"1rem"}}>
+                <h2 className="section-title">Lesson Content</h2>
+                <LessonRenderer content={lesson.content} />
+            </section>
+
+        </div>
         
-      
+        
     </main>
-  );
+    );
 }
 
 export default Lesson;
