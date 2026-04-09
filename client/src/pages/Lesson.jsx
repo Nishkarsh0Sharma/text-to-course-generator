@@ -11,6 +11,8 @@ import LoadingState from "../components/LoadingState.jsx";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
+import { useAuth0 } from "@auth0/auth0-react";
+
 // fetches lesson by id
 // generates lesson content if it is not enriched
 // displays title, module, objectives, and content
@@ -23,6 +25,8 @@ function Lesson() {
     const [error, setError] = useState("");
 
     const lessonRef = useRef(null);
+
+    const { isAuthenticated, isLoading: authLoading, getAccessTokenSilently } = useAuth0();
 
     // this is called by "Download PDF" button on UI
     const handleDownloadPdf = async()=> {
@@ -52,40 +56,48 @@ function Lesson() {
 
     useEffect(() => {
         const fetchLesson = async () => {
-            try {
-            setError("");
-            setIsLoading(true);
 
-            const lessonResult = await getLessonById(lessonId);
-
-            if (!lessonResult.success) {
-                setError(lessonResult.message || "Failed to fetch lesson");
+            if( !isAuthenticated ){
+                setLesson(null);
+                setIsLoading(false);
                 return;
             }
 
-            let lessonData = lessonResult.data;
+            try {
+                setError("");
+                setIsLoading(true);
+                
+                const token = await getAccessTokenSilently();
+                const lessonResult = await getLessonById(lessonId , token);
 
-            if (!lessonData.isEnriched) {
-                const generatedResult = await generateLessonContent(lessonId);
-
-                if (!generatedResult.success) {
-                setError(generatedResult.message || "Failed to generate lesson content");
-                return;
+                if (!lessonResult.success) {
+                    setError(lessonResult.message || "Failed to fetch lesson");
+                    return;
                 }
 
-                lessonData = generatedResult.data;
-            }
+                let lessonData = lessonResult.data;
 
-            setLesson(lessonData);
+                if (!lessonData.isEnriched) {
+                    const generatedResult = await generateLessonContent(lessonId , token);
+
+                    if (!generatedResult.success) {
+                    setError(generatedResult.message || "Failed to generate lesson content");
+                    return;
+                    }
+
+                    lessonData = generatedResult.data;
+                }
+
+                setLesson(lessonData);
             } catch (err) {
-            setError("Something went wrong while loading the lesson");
+            setError( err.message ||  "Something went wrong while loading the lesson");
             } finally {
             setIsLoading(false);
             }
         };
 
-        fetchLesson();
-    }, [lessonId]);
+        if( !authLoading ) fetchLesson();
+    }, [lessonId, isAuthenticated, authLoading, getAccessTokenSilently]);
 
     if(isLoading){
         return (
@@ -103,6 +115,14 @@ function Lesson() {
         );
     }
 
+    if( !isAuthenticated && !authLoading ){
+        return (
+            <main className="page">
+                <EmptyState message = "Log in to view this lesson." />
+            </main>
+        );
+    }
+
     if(!lesson){
         return (
             <main className="page">
@@ -115,7 +135,7 @@ function Lesson() {
     <main className="page">
 
         {lesson.module && (
-            <Link className="black-line" to={`/courses/${lesson.module.course}`} style={{marginRight:"1rem"}} >
+            <Link className="back-link" to={`/courses/${lesson.module.course}`} style={{marginRight:"1rem"}} >
                 Back to Course
             </Link>
         )}

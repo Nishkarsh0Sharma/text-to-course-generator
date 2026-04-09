@@ -10,8 +10,9 @@ const getLessonDetails = async( req , res ) => {
         // req.params will give us access to the dynamic parameters in the URL, 
         // in this case :lessonId, so we can extract the lessonId from req.params and use it to fetch the lesson details from the database using the getLessonById service function.
         const { lessonId } = req.params;
+        const creator = req.auth?.payload?.sub;
 
-        const lesson = await getLessonById(lessonId);
+        const lesson = await getLessonById(lessonId,creator);
 
         if(!lesson){
             return res.status(404).json({
@@ -40,7 +41,8 @@ const getLessonDetails = async( req , res ) => {
 const generateLessonContent = async( req , res ) => {
     try {
         const { lessonId } = req.params;
-        const lesson = await generateLessonContentById(lessonId);
+        const creator = req.auth?.payload?.sub;
+        const lesson = await generateLessonContentById(lessonId, creator);
 
         if(!lesson){
             return res.status(404).json({

@@ -13,7 +13,6 @@ import { useAuth0 } from "@auth0/auth0-react";
 // User input → setTopic → render
 // Submit → generateCourse → fetchCourse → setCourses → render
 function Home(){
-    const [topic,setTopic] = useState("");
     const [courses , setCourses] = useState([]);
     const [isLoading , setIsLoading] = useState(false);
     const [error , setError] = useState("");
@@ -24,10 +23,17 @@ function Home(){
 
     // this function will fetch all the courses from the backend server and update the state with the fetched courses.
     const fetchCourse = async () => {
+
+        if(!isAuthenticated){
+            setCourses([]);
+            return;
+        }
+
         try {
             setError(""); // clear any previous error messages before making the API call
 
-            const result = await getAllCourses();
+            const token = await getAccessTokenSilently();
+            const result = await getAllCourses(token);
 
             if(!result.success){
                 setError(result.message || "Failed to fetch courses");
@@ -37,15 +43,17 @@ function Home(){
             setCourses(result.data);
 
         } catch (error) {
-            setError("Something went wrong while fetching courses");
+            setError(error.message || "Something went wrong while fetching courses");
         }
     };
 
     // run for the first time when the component mounts, 
     // and it will fetch all the courses from the backend server and update the state with the fetched courses.
     useEffect(()=>{
-        fetchCourse();
-    } , [] );
+        if(!authLoading){
+            fetchCourse();
+        }
+    } , [isAuthenticated , authLoading, getAccessTokenSilently] );
 
     // this function will handle the form submission for generating a new course based on the input topic, and it will call the generateCourse API function to send a request to the backend server to generate a new course, and then it will refresh the course list by calling fetchCourse after successfully generating a new course.
     const handleGenerateCourse = async(topic) => {
@@ -128,7 +136,9 @@ function Home(){
 
                 <h2 className="section-title">Saved Courses</h2>
                 {isLoading && <LoadingState message="Loading courses..." />}
-                { !isLoading && courses.length === 0 && <EmptyState message="No courses found yet." /> }
+                
+                { !isLoading && !isAuthenticated && !authLoading && <EmptyState message="Log in to view your saved courses." /> }
+                { !isLoading && isAuthenticated && courses.length === 0 && <EmptyState message="No courses found yet." /> }
 
                 <div className="stack">
                     { !isLoading &&

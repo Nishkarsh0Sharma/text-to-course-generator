@@ -38,7 +38,10 @@ const generateCourse = async ( req , res ) => {
 // return all saved courses in the database with their modules and lessons (nested population)
 const getCourses = async ( req , res ) => {
     try{
-        const courses = await getAllCourses();
+
+        // extracts the authenticated user's unique ID (subject) from the decoded JWT token
+        const creator = req.auth?.payload?.sub;
+        const courses = await getAllCourses(creator);
 
         return res.status(200).json({
             success: true,
@@ -60,8 +63,9 @@ const getCourses = async ( req , res ) => {
 const getCourseDetails = async ( req , res ) => {
     try {
         const { courseId } = req.params;
+        const creator = req.auth?.payload?.sub;
 
-        const course = await getCourseById(courseId);
+        const course = await getCourseById(courseId , creator);
 
         if(!course){
             return res.status(404).json({

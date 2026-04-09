@@ -119,8 +119,8 @@ const generateCourseContent = async(topic,creator) => {
 };
 
 // gives lightweight course list
-const getAllCourses = async () => {
-    const courses = await Course.find()
+const getAllCourses = async (creator) => {
+    const courses = await Course.find({creator})
     .sort({ createdAt: -1 })
     .select("title description tags modules createdAt updatedAt");
 
@@ -137,8 +137,8 @@ const getAllCourses = async () => {
 
 // gives full nested course with modules and lessons
 // uses populate() to replace IDs with actual documents
-const getCourseById = async (courseId) => {
-    const course = await Course.findById(courseId).populate({
+const getCourseById = async (courseId , creator) => {
+    const course = await Course.findOne({ _id: courseId, creator }).populate({
         path: "modules",
         populate: {
             path: "lessons",
@@ -179,7 +179,7 @@ const getCourseById = async (courseId) => {
 };
 
 // gives detailed lesson info with its module's title and course id (but not the full course details)
-const getLessonById = async (lessonId) =>{
+const getLessonById = async (lessonId , creator) =>{
 
     // this will return the lesson with its module's title and course id (but not the full course details)
     const lesson = await Lesson.findById(lessonId).populate({
@@ -187,7 +187,15 @@ const getLessonById = async (lessonId) =>{
         select: "title course createdAt updatedAt",
     });
 
-    if(!lesson) return null;
+    if(!lesson || !lesson.module) return null;
+
+    // Now lesson access only works if the lesson belongs to a course owned by the logged-in user.
+    const course = await Course.findOne({
+        _id: lesson.module.course,
+        creator,
+    }).select("_id"); // only return _id field
+    
+    if( !course ) return null;
 
     return {
         _id: lesson._id,
@@ -217,13 +225,17 @@ const getLessonById = async (lessonId) =>{
 // including learning objectives, structured content blocks, and a video query. 
 // It first checks if the lesson exists and if it has already been enriched. 
 // If not, it builds dummy enrichment content (which can later be replaced with real AI-generated content), updates the lesson in the database, and returns the enriched lesson details.
-const generateLessonContentById = async(lessonId) => {
+const generateLessonContentById = async(lessonId , creator) => {
     const lesson = await Lesson.findById(lessonId).populate({
         path: "module",
         select: "title course", 
     });
 
-    if(!lesson) return null;
+    if(!lesson || !lesson.module) return null;
+
+    // Now lesson access only works if the lesson belongs to a course owned by the logged-in user.
+    const course = await Course.findOne({ _id: lesson.module.course , creator }).select("_id"); // only return _id field
+    if(!course) return null;
 
     // if lesson is already isEnriched , return the current saved lesson
     if( lesson.isEnriched ){

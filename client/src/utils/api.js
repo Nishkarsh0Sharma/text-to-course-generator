@@ -14,13 +14,21 @@ const parseJsonResponse = async (response) => {
     return result;
 };
 
-const getAllCourses = async()=>{
-    const response = await fetch(`${API_BASE_URL}/courses`);
+const getAllCourses = async(token)=>{
+    const response = await fetch(`${API_BASE_URL}/courses`, {
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
     return parseJsonResponse(response);
 };
 
-const getCourseById = async(courseId)=> {
-    const response = await fetch(`${API_BASE_URL}/courses/${courseId}`);
+const getCourseById = async(courseId , token)=> {
+    const response = await fetch(`${API_BASE_URL}/courses/${courseId}`, {
+        headers : {
+            Authorization: `Bearer ${token}`,
+        },
+    });
     return parseJsonResponse(response);
 };
 
@@ -38,14 +46,21 @@ const generateCourse = async(topic,token) => {
     return parseJsonResponse(response);
 };
 
-const getLessonById = async(lessonId) => {
-    const response = await fetch(`${API_BASE_URL}/lessons/${lessonId}`);
+const getLessonById = async(lessonId , token) => {
+    const response = await fetch(`${API_BASE_URL}/lessons/${lessonId}` , {
+        headers : {
+            Authorization : `Bearer ${token}`
+        },
+    });
     return parseJsonResponse(response);
 };
-
-const generateLessonContent = async(lessonId) => {
+                 
+const generateLessonContent = async(lessonId, token) => {
     const response = await fetch(`${API_BASE_URL}/lessons/${lessonId}/generate`, {
         method: "POST",
+        headers : {
+            Authorization : `Bearer ${token}`,
+        },
     });
 
     return parseJsonResponse(response);

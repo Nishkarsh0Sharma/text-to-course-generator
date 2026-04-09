@@ -19,10 +19,10 @@ const router = express.Router();
 router.post("/generate-course" , requireAuth , generateCourse);
 
 // fetch all saved courses
-router.get("/" , getCourses);
+router.get("/" , requireAuth , getCourses);
 
 // fetch one saved course by its id
-router.get("/:courseId" , validateObjectId("courseId") , getCourseDetails);
+router.get("/:courseId" , requireAuth ,  validateObjectId("courseId") , getCourseDetails);
 
 
 // finally, we export the router so that it can be imported and used in the main server.js file to register the course-related routes with the express app
