@@ -8,25 +8,23 @@ import Course from "../models/course.model.js";
 import Module from "../models/module.model.js";
 import Lesson from "../models/lesson.model.js";
 
-// this function takes a topic as input and generates a course structure with modules and lessons.
-const generateCourseContent = async(topic,creator) => {
-    // step 1 : build a dummy course outline
-    // later , this can be replace with a real AI-generated output
+import openai from "../config/openai.js";
 
-    const generatedCourse = {
+
+const buildFallbackCourseOutline = (topic) => {
+    return {
         title: `Course on ${topic}`,
         description: `This course provides a structured learning path for ${topic}, starting from the basics and moving toward practical understanding.`,
-        tags: [ topic.toLowerCase() , "beginner-friendly", "structured-learning" ],
+        tags: [topic.toLowerCase(), "beginner-friendly", "structured-learning"],
         modules: [
             {
                 title: `Introduction to ${topic}`,
                 lessons: [
                     { title: `What is ${topic}?` },
-                    { title: `Why ${topic} matters`  },
+                    { title: `Why ${topic} matters` },
                     { title: `Common use cases of ${topic}` },
                 ],
             },
-
             {
                 title: `Core Concepts of ${topic}`,
                 lessons: [
@@ -35,18 +33,478 @@ const generateCourseContent = async(topic,creator) => {
                     { title: `How ${topic} works in practice` },
                 ],
             },
-
             {
                 title: `Getting Started with ${topic}`,
                 lessons: [
                     { title: `Beginner roadmap for ${topic}` },
-                    { title: `Tools and resources for learning ${topic}`   },
-                    { title: `First practical steps in ${topic}`  },
+                    { title: `Tools and resources for learning ${topic}` },
+                    { title: `First practical steps in ${topic}` },
                 ],
             },
-
         ],
     };
+};
+
+const buildCourseOutlinePrompt = (topic) => {
+    return `You generate beginner-friendly course outlines. Return only valid JSON with no markdown, no code fences, and no extra explanation.
+
+            Create a beginner-friendly course outline for the topic: "${topic}".
+
+            Return JSON in exactly this shape:
+            {
+                "title": "string",
+                "description": "string",
+                "tags": ["string", "string", "string"],
+                "modules": [
+                    {
+                        "title": "string",
+                        "lessons": [
+                            { "title": "string" }
+                        ]
+                    }
+                ]
+            }
+
+            Rules:
+            - 3 modules exactly
+            - 3 lessons per module exactly
+            - keep titles concise
+            - make the course practical and beginner-friendly
+            - tags should be short lowercase strings
+            - return only JSON`;
+};
+
+const parseCourseOutlineJson = (rawText, providerName) => {
+    if (!rawText) {
+        throw new Error(`${providerName} did not return course outline text`);
+    }
+
+    const parsed = JSON.parse(rawText);
+
+    if (
+        !parsed.title ||
+        !parsed.description ||
+        !Array.isArray(parsed.tags) ||
+        !Array.isArray(parsed.modules)
+    ) {
+        throw new Error(`${providerName} returned invalid course outline structure`);
+    }
+
+    return parsed;
+};
+
+const generateCourseOutlineWithGemini = async (topic) => {
+    if (!process.env.GEMINI_API_KEY) {
+        throw new Error("GEMINI_API_KEY is missing");
+    }
+
+    const response = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "x-goog-api-key": process.env.GEMINI_API_KEY,
+            },
+            body: JSON.stringify({
+                contents: [
+                    {
+                        parts: [
+                            {
+                                text: buildCourseOutlinePrompt(topic),
+                            },
+                        ],
+                    },
+                ],
+            }),
+        }
+    );
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+        throw new Error(
+            data?.error?.message || `Gemini request failed with status ${response.status}`
+        );
+    }
+
+    const rawText = data?.candidates?.[0]?.content?.parts
+        ?.map((part) => part.text || "")
+        ?.join("")
+        ?.trim();
+
+    return parseCourseOutlineJson(rawText, "Gemini");
+};
+
+const generateCourseOutlineWithClaude = async (topic) => {
+    if (!process.env.CLAUDE_API_KEY) {
+        throw new Error("CLAUDE_API_KEY is missing");
+    }
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "x-api-key": process.env.CLAUDE_API_KEY,
+            "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+            model: "claude-3-5-haiku-latest",
+            max_tokens: 1200,
+            messages: [
+                {
+                    role: "user",
+                    content: buildCourseOutlinePrompt(topic),
+                },
+            ],
+        }),
+    });
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+        throw new Error(
+            data?.error?.message || `Claude request failed with status ${response.status}`
+        );
+    }
+
+    const rawText = data?.content
+        ?.map((part) => part.text || "")
+        ?.join("")
+        ?.trim();
+
+    return parseCourseOutlineJson(rawText, "Claude");
+};
+
+const generateCourseOutlineWithAI = async (topic) => {
+
+    const response = await openai.responses.create({
+
+        model: "gpt-5-mini",
+        input: [
+
+        {
+            role: "system",
+            content: [
+                {
+                    type: "input_text",
+                    text: "You generate beginner-friendly course outlines. Return only valid JSON with no markdown, no code fences, and no extra explanation.",
+                },
+            ],
+        },
+
+        {
+            role: "user",
+            content: [
+            {
+                type: "input_text",
+                text: buildCourseOutlinePrompt(topic),
+
+            },
+            ],
+        },
+        ],
+    });
+
+    const rawText =
+        response.output_text ||
+        response.output
+            ?.flatMap((item) => item.content || [])
+            ?.map((part) => part.text || "")
+            ?.join("")
+            ?.trim();
+
+    return parseCourseOutlineJson(rawText, "OpenAI");
+};
+
+const buildFallbackLessonEnrichment = (lessonTitle, moduleTitle) => {
+    const videoQuery = `${lessonTitle} tutorial for beginners`;
+
+    return {
+        objectives: [
+            `Understand the core idea behind ${lessonTitle}`,
+            `Identify practical importance of ${lessonTitle}`,
+            `Build a beginner-friendly understanding of ${lessonTitle}`,
+        ],
+        videoQuery,
+        content: [
+            {
+                type: "heading",
+                text: lessonTitle,
+            },
+            {
+                type: "paragraph",
+                text: `${lessonTitle} is an important concept in ${moduleTitle}. This lesson introduces the idea in a simple and structured way so that a beginner can understand the fundamentals clearly.`,
+            },
+            {
+                type: "paragraph",
+                text: `By learning ${lessonTitle}, the student builds a stronger foundation for upcoming concepts and gains confidence in understanding the broader topic.`,
+            },
+            {
+                type: "code",
+                language: "javascript",
+                text: `function explainLesson() {\n  console.log("Learning: ${lessonTitle}");\n}\n\nexplainLesson();`,
+            },
+            {
+                type: "mcq",
+                question: `What best describes ${lessonTitle}?`,
+                options: [
+                    `It is an important learning concept in this course`,
+                    `It is a type of database`,
+                    `It is only a UI design pattern`,
+                ],
+                answer: 0,
+                explanation: `${lessonTitle} is being taught as an important concept within this lesson, not as a database or only a UI pattern.`,
+            },
+            {
+                type: "video",
+                query: videoQuery,
+            },
+        ],
+    };
+};
+
+const buildLessonEnrichmentPrompt = (lessonTitle, moduleTitle) => {
+    return `You generate beginner-friendly lesson content. Return only valid JSON with no markdown, no code fences, and no extra explanation.
+
+    Lesson title: "${lessonTitle}"
+    Module title: "${moduleTitle}"
+
+    Return JSON in exactly this shape:
+    {
+        "objectives": ["string", "string", "string"],
+        "videoQuery": "string",
+        "content": [
+            { "type": "heading", "text": "string" },
+            { "type": "paragraph", "text": "string" },
+            { "type": "paragraph", "text": "string" },
+            { "type": "code", "language": "javascript", "text": "string" },
+            {
+            "type": "mcq",
+            "question": "string",
+            "options": ["string", "string", "string"],
+            "answer": 0,
+            "explanation": "string"
+            },
+            { "type": "video", "query": "string" }
+        ]
+    }
+
+    Rules:
+    - exactly 3 objectives
+    - keep explanations beginner-friendly
+    - include one short practical code block only if the lesson is technical; otherwise include a simple pseudocode-style example
+    - MCQ answer must be a zero-based index of the correct option
+    - videoQuery should be a YouTube search query for a beginner tutorial
+    - return only JSON`;
+};
+
+const parseLessonEnrichmentJson = (rawText, providerName) => {
+    if (!rawText) {
+        throw new Error(`${providerName} did not return lesson enrichment text`);
+    }
+
+    const parsed = JSON.parse(rawText);
+
+    if (
+        !Array.isArray(parsed.objectives) ||
+        typeof parsed.videoQuery !== "string" ||
+        !Array.isArray(parsed.content)
+    ) {
+        throw new Error(`${providerName} returned invalid lesson enrichment structure`);
+    }
+
+    return parsed;
+};
+
+const generateLessonEnrichmentWithOpenAI = async (lessonTitle, moduleTitle) => {
+    const response = await openai.responses.create({
+        model: "gpt-5-mini",
+        input: [
+            {
+                role: "system",
+                content: [
+                    {
+                        type: "input_text",
+                        text: "You generate structured beginner-friendly lesson content. Return only valid JSON.",
+                    },
+                ],
+            },
+            {
+                role: "user",
+                content: [
+                    {
+                        type: "input_text",
+                        text: buildLessonEnrichmentPrompt(lessonTitle, moduleTitle),
+                    },
+                ],
+            },
+        ],
+    });
+
+    const rawText =
+        response.output_text ||
+        response.output
+            ?.flatMap((item) => item.content || [])
+            ?.map((part) => part.text || "")
+            ?.join("")
+            ?.trim();
+
+    return parseLessonEnrichmentJson(rawText, "OpenAI");
+};
+
+const generateLessonEnrichmentWithGemini = async (lessonTitle, moduleTitle) => {
+    if (!process.env.GEMINI_API_KEY) {
+        throw new Error("GEMINI_API_KEY is missing");
+    }
+
+    const response = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "x-goog-api-key": process.env.GEMINI_API_KEY,
+            },
+            body: JSON.stringify({
+                contents: [
+                    {
+                        parts: [
+                            {
+                                text: buildLessonEnrichmentPrompt(lessonTitle, moduleTitle),
+                            },
+                        ],
+                    },
+                ],
+            }),
+        }
+    );
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+        throw new Error(
+            data?.error?.message || `Gemini request failed with status ${response.status}`
+        );
+    }
+
+    const rawText = data?.candidates?.[0]?.content?.parts
+        ?.map((part) => part.text || "")
+        ?.join("")
+        ?.trim();
+
+    return parseLessonEnrichmentJson(rawText, "Gemini");
+};
+
+const generateLessonEnrichmentWithClaude = async (lessonTitle, moduleTitle) => {
+    if (!process.env.CLAUDE_API_KEY) {
+        throw new Error("CLAUDE_API_KEY is missing");
+    }
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "x-api-key": process.env.CLAUDE_API_KEY,
+            "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+            model: "claude-3-5-haiku-latest",
+            max_tokens: 1800,
+            messages: [
+                {
+                    role: "user",
+                    content: buildLessonEnrichmentPrompt(lessonTitle, moduleTitle),
+                },
+            ],
+        }),
+    });
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+        throw new Error(
+            data?.error?.message || `Claude request failed with status ${response.status}`
+        );
+    }
+
+    const rawText = data?.content
+        ?.map((part) => part.text || "")
+        ?.join("")
+        ?.trim();
+
+    return parseLessonEnrichmentJson(rawText, "Claude");
+};
+
+const generateLessonEnrichment = async (lessonTitle, moduleTitle) => {
+    let providerUsed = "fallback";
+
+    try {
+        const enrichment = await generateLessonEnrichmentWithOpenAI(lessonTitle, moduleTitle);
+        providerUsed = "openai";
+        return { ...enrichment, providerUsed };
+    } catch (openAiError) {
+        console.error("OpenAI lesson enrichment failed:", openAiError.message);
+
+        try {
+            const enrichment = await generateLessonEnrichmentWithGemini(lessonTitle, moduleTitle);
+            providerUsed = "gemini";
+            return { ...enrichment, providerUsed };
+        } catch (geminiError) {
+            console.error("Gemini lesson enrichment failed:", geminiError.message);
+
+            try {
+                const enrichment = await generateLessonEnrichmentWithClaude(lessonTitle, moduleTitle);
+                providerUsed = "claude";
+                return { ...enrichment, providerUsed };
+            } catch (claudeError) {
+                console.error("Claude lesson enrichment failed, using fallback lesson content:", claudeError.message);
+                return {
+                    ...buildFallbackLessonEnrichment(lessonTitle, moduleTitle),
+                    providerUsed,
+                };
+            }
+        }
+    }
+};
+
+
+// this function takes a topic as input and generates a course structure with modules and lessons.
+const generateCourseContent = async(topic,creator) => {
+    let generatedCourse;
+    let providerUsed = "fallback";
+
+    // OpenAI
+    //   ↓ if fails
+    // Gemini
+    //   ↓ if fails
+    // Claude
+    //   ↓ if fails
+    // buildFallbackCourseOutline
+    try {
+        generatedCourse = await generateCourseOutlineWithAI(topic);
+        providerUsed = "openai";
+    } catch (openAiError) {
+        console.error("OpenAI course outline generation failed:", openAiError.message);
+
+        try {
+            generatedCourse = await generateCourseOutlineWithGemini(topic);
+            providerUsed = "gemini";
+        } catch (geminiError) {
+            console.error("Gemini course outline generation failed:", geminiError.message);
+
+            try {
+                generatedCourse = await generateCourseOutlineWithClaude(topic);
+                providerUsed = "claude";
+            } catch (claudeError) {
+                console.error("Claude course outline generation failed, using fallback outline:", claudeError.message);
+                generatedCourse = buildFallbackCourseOutline(topic);
+                providerUsed = "fallback";
+            }
+        }
+    }
+
+    console.log(`Course outline generated using provider: ${providerUsed}`);
 
     // step 2 : create the parent course first so we get it _id.
     const savedCourse = await Course.create({
@@ -97,12 +555,13 @@ const generateCourseContent = async(topic,creator) => {
     savedCourse.modules = savedModules.map(module => module._id);
     await savedCourse.save();
 
-    // step 6: return a frontend-friendly neste respone shape
+    // step 6: return a frontend-friendly nested respone shape
     return {
         _id: savedCourse._id,
         title: savedCourse.title,
         description: savedCourse.description,
         tags: savedCourse.tags,
+        providerUsed,
         // for each module, we return its _id and title, and for each lesson inside that module, we return its _id and title as well
         modules: savedModules.map((module, moduleIndex) => ({
             _id: module._id,
@@ -220,7 +679,6 @@ const getLessonById = async (lessonId , creator) =>{
     };
 };
 
-
 // this function takes a lessonId as input and generates detailed content for that lesson, 
 // including learning objectives, structured content blocks, and a video query. 
 // It first checks if the lesson exists and if it has already been enriched. 
@@ -262,76 +720,47 @@ const generateLessonContentById = async(lessonId , creator) => {
         };
     }
 
-    // build dunmmy lesson emrichment content for now
-    // later this can be replaced by real AI-generated content
-    const generatedObjectives = [
-        `Understand the core idea behind ${lesson.title}`,
-        `Identify practical importance of ${lesson.title}`,
-        `Build a begineer-friendly understanding of ${lesson.title}`,
-    ];
+    const lessonEnrichment = await generateLessonEnrichment(
+        lesson.title,
+        lesson.module.title
+    );
 
-    const generatedVideoQuery = `${lesson.title} tutorial for beginners`;
-
-    const generatedContent = [
-        {
-            type: "heading",
-            text: lesson.title,
-        },
-        {
-            type: "paragraph",
-            text: `${lesson.title} is an important concept in this course. This lesson introduces the idea in a simple and structured way so that a beginner can understand the fundamentals clearly.`,
-        },
-        {
-            type: "paragraph",
-            text: `By learning ${lesson.title}, the student builds a stronger foundation for the upcoming concepts in this module and gains confidence in understanding the broader topic.`,
-        },
-        {
-            type: "code",
-            language: "javascript",
-            text: `function explainLesson() {\n  console.log("Learning: ${lesson.title}");\n}\n\nexplainLesson();`,
-        },
-        {
-            type: "mcq",
-            question: `What best describes ${lesson.title}?`,
-            options: [
-                `It is an important learning concept in this course`,
-                `It is a type of database`,
-                `It is only a UI design pattern`,
-            ],
-            answer: 0,
-            explanation: `${lesson.title} is being taught as an important concept within this lesson, not as a database or only a UI pattern.`,
-        },
-        {
-            type: "video",
-            query: generatedVideoQuery,
-        },
-    ];
+    console.log(`Lesson content generated using provider: ${lessonEnrichment.providerUsed}`);
 
 
-    lesson.objectives = generatedObjectives;
-    lesson.content = generatedContent;
-    lesson.videoQuery = generatedVideoQuery;
-    lesson.isEnriched = true;
+    const updatedLesson = await Lesson.findByIdAndUpdate(
+        lesson._id,
+        {
+            objectives: lessonEnrichment.objectives,
+            content: lessonEnrichment.content,
+            videoQuery: lessonEnrichment.videoQuery,
+            isEnriched: true,
+        },
+        { new: true }
+    ).populate({
+        path: "module",
+        select: "title course createdAt updatedAt",
+    });
 
-    await lesson.save();
+    if (!updatedLesson || !updatedLesson.module) return null;
 
     return {
-        _id: lesson._id,
-        title: lesson.title,
-        objectives: lesson.objectives,
-        content: lesson.content,
-        videoQuery: lesson.videoQuery,
-        isEnriched: lesson.isEnriched,
-        createdAt: lesson.createdAt,
-        updatedAt: lesson.updatedAt,
+        _id: updatedLesson._id,
+        title: updatedLesson.title,
+        objectives: updatedLesson.objectives,
+        content: updatedLesson.content,
+        videoQuery: updatedLesson.videoQuery,
+        isEnriched: updatedLesson.isEnriched,
+        createdAt: updatedLesson.createdAt,
+        updatedAt: updatedLesson.updatedAt,
 
-        module: lesson.module
+        module: updatedLesson.module
         ? {
-            _id: lesson.module._id,
-            title: lesson.module.title,
-            course: lesson.module.course,
-            createdAt: lesson.module.createdAt,
-            updatedAt: lesson.module.updatedAt,
+            _id: updatedLesson.module._id,
+            title: updatedLesson.module.title,
+            course: updatedLesson.module.course,
+            createdAt: updatedLesson.module.createdAt,
+            updatedAt: updatedLesson.module.updatedAt,
             }
         : null,
     };

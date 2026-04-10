@@ -20,6 +20,8 @@ const generateCourse = async ( req , res ) => {
         // so generator controller now passes the authenticated user identity into the service
         const course = await generateCourseContent(topic.trim() , creator);
 
+        console.log(`Course generated with provider: ${course.providerUsed}`);
+
         return res.status(200).json({
             success : true,
             message : "Course generated successfully",

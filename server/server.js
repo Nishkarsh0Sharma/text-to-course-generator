@@ -32,6 +32,11 @@ app.use(cors());
 // tells express to automatically parse JSON body data
 app.use(express.json());
 
+app.use((req, res, next) => {
+    console.log(`[request] ${req.method} ${req.originalUrl}`);
+    next();
+});
+
 // Health check
 // when you open http://localhost:5000/ , you'll know the backend is alive and running, and it will return a JSON response with a success message
 app.get("/" , (req , res)=>{
