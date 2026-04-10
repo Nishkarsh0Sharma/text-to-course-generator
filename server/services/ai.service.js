@@ -10,6 +10,7 @@ import Lesson from "../models/lesson.model.js";
 
 import openai from "../config/openai.js";
 
+// Course starts //
 
 const buildFallbackCourseOutline = (topic) => {
     return {
@@ -216,6 +217,10 @@ const generateCourseOutlineWithAI = async (topic) => {
 
     return parseCourseOutlineJson(rawText, "OpenAI");
 };
+
+// Course ends //
+
+// Lesson starts  //
 
 const buildFallbackLessonEnrichment = (lessonTitle, moduleTitle) => {
     const videoQuery = `${lessonTitle} tutorial for beginners`;
@@ -468,6 +473,7 @@ const generateLessonEnrichment = async (lessonTitle, moduleTitle) => {
     }
 };
 
+// Lesson ends //
 
 // this function takes a topic as input and generates a course structure with modules and lessons.
 const generateCourseContent = async(topic,creator) => {
