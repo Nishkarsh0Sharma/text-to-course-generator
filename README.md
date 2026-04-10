@@ -492,12 +492,27 @@ Recommended setup:
 - Backend: Render or Railway
 - Database: MongoDB Atlas
 
+This repo includes:
+
+- `client/vercel.json` for React Router SPA rewrites on Vercel
+- `render.yaml` as a Render blueprint for the backend web service
+
 For production:
 
 - Set `VITE_API_BASE_URL` to your deployed backend API URL.
 - Set `CLIENT_URL` on the backend to your deployed frontend URL.
 - Add the deployed frontend URL to Auth0 Allowed Callback URLs, Logout URLs, and Web Origins.
 - Keep AI and YouTube keys only in backend environment variables.
+
+### Suggested deploy order
+
+1. Deploy the backend first using Render with `server` as the root directory.
+2. Copy the deployed backend URL.
+3. Deploy the frontend on Vercel with `client` as the root directory.
+4. Set `VITE_API_BASE_URL` in Vercel to `https://your-backend-url/api`.
+5. Set `CLIENT_URL` in Render to the deployed frontend URL.
+6. Add the deployed frontend URL in Auth0 callback, logout, and web origin settings.
+7. Redeploy both services after final env updates.
 
 ## Current MVP Flow
 
